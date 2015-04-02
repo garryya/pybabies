@@ -1,5 +1,6 @@
 #!/usr/bin/python
 """ Check if a given sequence of moves for a robot is circular or not
+    http://www.geeksforgeeks.org/check-if-a-given-sequence-of-moves-for-a-robot-is-circular-or-not/
 
     Given a sequence of moves for a robot, check if the sequence is circular or not.
     A sequence of moves is circular if first and last positions of robot are same.
