@@ -1,0 +1,25 @@
+#!/usr/bin/python
+"""
+"""
+__author__ = 'garryya'
+__version__     = '0.1'
+
+import sys
+import os
+import re
+
+print sys.argv
+
+fhtml = sys.argv[0]
+if not os.path.exists(fhtml):
+    print 'not exists'
+    sys.exit(1)
+
+class options:
+    product = 'qel'
+
+p = re.compile(r'<b>\/%s\/[.\/]+(\/vobs.*)<\/b>' % options.product)
+src = open(fhtml).read()
+f = open(os.path.splitext(fhtml)[0]+'-new'+'.html','w')
+f.write(p.sub(r'<b><a href=\1>\1</a></b>', src))
+f.close()
