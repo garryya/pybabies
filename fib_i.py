@@ -1,5 +1,11 @@
 #!/usr/bin/python3
 
+"""
+    Fibonacci sequence (iterative, bottom-up) - prints Nth number
+    
+    https://www.mathsisfun.com/numbers/fibonacci-sequence.html
+"""
+
 import sys
 
 def fibonacci(n, verbose=False):
