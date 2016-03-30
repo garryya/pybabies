@@ -1,4 +1,4 @@
-#!/grid/common/pkgs/python/v3.4.0/bin/python3.4 -B
+#!/usr/bin/python3
 
 import sys
 
