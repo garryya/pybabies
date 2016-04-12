@@ -69,25 +69,59 @@ def get_products_except_index(ilist, verbose=False):
     return rlist
 
 
+# http://algorithms.tutorialhorizon.com/dynamic-programming-longest-common-substring/
 # http://stackoverflow.com/questions/14670632/algorithm-to-find-the-most-common-substrings-in-a-string
-def most_common_substring2():
+# naive
+def most_common_substring_data():
     try:
+        """
         N = int(input())
         K, L, M = (int(v) for v in input().split())
         S = input()[:N]
-        submap = {}
-        for i in range(len(S)):
-            for l in range(K, L+1):
-                if i+l > len(S):
-                    continue
-                s = S[i:i+l]
-                # distinction check
-                if len(set(s)) > M:
-                    continue
-                if s not in submap:
-                    submap[s] = 0
-                submap[s] += 1
-        print(max([n for n in submap.values()]) if submap else 0)
+        """
+        N = 5
+        K, L, M = 1, 5, 10
+        S = 'ababc'
+        ls = locals()
+        return {l:ls[l] for l in ls}
+    except Exception as e:
+        print('bad input', str(e))
+        sys.exit(1)
+
+def most_common_substring1():
+    data = most_common_substring_data()
+    submap = {}
+    for i in range(len(data['S'])):
+        for l in range(data['K'], data['L'] + 1):
+            if i + l > len(data['S']):
+                continue
+            s = data['S'][i:i + l]
+            # distinction check
+            if len(set(s)) > data['M']:
+                continue
+            if s not in submap:
+                submap[s] = 0
+            submap[s] += 1
+    print(max([n for n in submap.values()]) if submap else 0)
+
+# DP
+def most_common_substring2():
+    try:
+        data = most_common_substring_data()
+        s = data['S']
+        srange = range(len(s))
+        m = [[0 for _ in srange] for _ in srange]
+        mij = (-1,-1)
+        for i in srange:
+            for j in srange[i:]:
+                if i !=j and s[i] == s[j]:
+                    m[i][j] = 1 + (m[i-1][j-1] if i>0 and j>0 else 0)
+                    if mij == (-1,-1) or m[mij[0]][mij[1]] < m[i][j]:
+                        mij = (i, j)
+        #for r in m:
+        #    print(r)
+        if mij != (-1,-1):
+            print('max common substring L={:d} -> {}'.format(m[mij[0]][mij[1]], mij))
     except Exception as e:
         print('bad input', str(e))
 
