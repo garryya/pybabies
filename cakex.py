@@ -1,4 +1,4 @@
-#!/usr/bin/python3
+#!/usr/bin/python2
 
 """
     Interview Cake
@@ -7,6 +7,12 @@
 
 
 import sys
+
+def  StairCase(n):
+    fmt = '{:>%d}' % n
+    for i in range(1, n+1):
+        print(fmt.format('#'*i))
+
 
 # 20m
 def FizzBuzz1():
@@ -45,28 +51,44 @@ def FizzBuzz2():
 
 
 
+# https://www.interviewcake.com/question/python/product-of-other-numbers
+# You have a list of integers, and for each index you want to find the product of every integer except the integer at that index.
+def get_products_except_index(ilist):
+    istack = []
+    for i in range(len(ilist)):
+        istack.append(ilist[i])
+        ilist[i] = ilist[i-1] * istack[-2] if i > 0 else 1
+    p = 1
+    for i in reversed(range(len(ilist)-1)):
+        p *= istack.pop()
+        ilist[i] *= p
+    return ilist
 
 
+# https://www.interviewcake.com/question/python/highest-product-of-3
+def get_product(l):
+    return reduce(lambda p, i: p*i, l, 1)
 
+def highest_product_of_3__sorted1(ilist):
+    ilist = sorted(ilist)
+    neg2 = ilist[:2] if all([i<0 for i in ilist[:2]]) else []
+    pos1 = ilist[-1:] if all([i>0 for i in ilist[-1:]]) else []
+    pos3 = ilist[-3:] if all([i>0 for i in ilist[-3:]]) else []
+    return max( get_product(neg2+pos1), get_product(pos3)) if (neg2 and pos1 or pos3) else None
 
-def get_products_except_index(ilist, verbose=False):
-    if verbose:
-        print('\toriginal: {}'.format(ilist))
-    # calc and store the product 'before'
-    llen = len(ilist)
-    tlist = list(ilist)
-    product = 1
-    for i in range(llen):
-        new_product = product * tlist[i]
-        tlist[i] = product
-        product = new_product
-    if verbose:
-        print('\thalf-product {}'.format(tlist))
-    # finilizing
-    rlist = list(ilist)
-    for i in reversed(range(llen)):
-        rlist[i] = tlist[i] * (ilist[i+1] if i < llen-1 else 1)
-    return rlist
+def highest_product_of_3__sorted2(ilist):
+    ilist = sorted(ilist)
+    print('sorted: ', ilist)
+    nneg = len([i for i in ilist if i<0])
+    npos = len([i for i in ilist if i>0])
+    if nneg >= 2 and npos >= 1:
+        nprod = get_product(ilist[:2])*ilist[-1]
+        #nprod = ilist[0]*ilist[1]*ilist[-1]
+        return max(nprod, get_product(ilist[-3:])) if npos>=3 else nprod
+    elif nneg >= 3 and npos <= 0:
+        return get_product(ilist[-3:])
+    else:
+        return None
 
 
 # http://algorithms.tutorialhorizon.com/dynamic-programming-longest-common-substring/
@@ -83,7 +105,7 @@ def most_common_substring_data():
         K, L, M = 1, 5, 10
         S = 'ababc'
         ls = locals()
-        return {l:ls[l] for l in ls}
+        return 0 #{(l,ls[l]) for l in ls}
     except Exception as e:
         print('bad input', str(e))
         sys.exit(1)
@@ -128,9 +150,16 @@ def most_common_substring2():
 
 if __name__ == '__main__':
 
-    ilist = [1, 7, 3, 4]
-    #print('CAKE: Get products except index: {}'.format(get_products_except_index(ilist, verbose=True)))
+    #ilist = [1, 7, 3, 4]
+    #get_products_except_index(ilist)
+    #print('CAKE: Get products except index: %s' % ilist)
+
+    #ilist = [-10, -10, -1, -7, -3, 4]
+    #ilist = [-10, -2, -1, -7, -3, 8, 9, 10, 4]
+    ilist = [-10, -2, -1, -7, -3]
+    p = highest_product_of_3__sorted2(ilist)
+    print('Highest product of %s: %s' % (ilist, p))
 
     #FizzBuzz2()
 
-    most_common_substring2()
+    #most_common_substring2()
