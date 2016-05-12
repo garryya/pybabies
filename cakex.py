@@ -148,6 +148,26 @@ def most_common_substring2():
         print('bad input', str(e))
 
 
+# https://www.interviewcake.com/question/python/merging-ranges
+def merge_ranges(rl):
+    rl = sorted(rl, key=lambda v: v[0])
+    rlc = []
+    for r in rl:
+        rlast = rlc.pop() if rlc else r
+        if rlast and rlast != r:
+            if r[0] > rlast[1]:
+                rlc.append(rlast)
+                rlast = r
+            else:
+                rlast = (rlast[0], max(r[1], rlast[1]))
+        rlc.append(rlast)
+    return rlc
+
+
+
+##########################
+##########################
+
 if __name__ == '__main__':
 
     #ilist = [1, 7, 3, 4]
@@ -156,10 +176,15 @@ if __name__ == '__main__':
 
     #ilist = [-10, -10, -1, -7, -3, 4]
     #ilist = [-10, -2, -1, -7, -3, 8, 9, 10, 4]
-    ilist = [-10, -2, -1, -7, -3]
-    p = highest_product_of_3__sorted2(ilist)
-    print('Highest product of %s: %s' % (ilist, p))
+    #ilist = [-10, -2, -1, -7, -3]
+    #p = highest_product_of_3__sorted2(ilist)
+    #print('Highest product of %s: %s' % (ilist, p))
 
     #FizzBuzz2()
 
     #most_common_substring2()
+
+    #rlist = [(0,1), (3,5), (4,8), (10, 12), (9,10)]
+    rlist = [(2,4), (3,6), (5,7), (7, 12), (9,10)]
+    rlist_consolidated = merge_ranges(rlist)
+    print('%s --consolidated--> %s' % (rlist, rlist_consolidated))
