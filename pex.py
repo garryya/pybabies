@@ -1,10 +1,8 @@
 #!/usr/bin/python
 
 import os
-import sys
 import pexpect
 import traceback
-
 
 try:
 
