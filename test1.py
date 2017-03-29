@@ -15,7 +15,7 @@ import json
 from twisted.internet import reactor, error, defer
 from twisted.internet.threads import deferToThread
 import time
-from grutils import DeferredLockSet
+from grutils import DeferredLockSet, handle_exception, kill_process, get_fqdn
 
 #print sys.argv[1:]
 
@@ -28,12 +28,12 @@ def  StairCase(n):
 
 def _finally():
     try:
-        raise KeyError
+        # raise KeyError
         #a = int('aaaaa')
         print(1)
-        os.exit(0)
+        #os.exit(0)
     except Exception as e:
-        print
+        print('EXC!!')
     finally:
         print('something is wrong')
 
@@ -97,6 +97,9 @@ def test_andy():
         f.write(html)
 
 
+
+
+
 #############################################
 #############################################
 
@@ -140,50 +143,85 @@ def test_status():
     print('{}'.format(ss.S1.format()))
 
 
+def test_meta():
+    JobSubproc_ = namedtuple('JobSubproc_', ['id', 'killf', 'verbose'])
 
-handlers = {'X': dict(delay=1, ended=False),
-            'U': dict(delay=1, ended=False),
-            'Y': dict(delay=1, ended=False)}
+    class JobSubproc(JobSubproc_):
+        def __init__(self, id, killf, verbose):
+            JobSubproc_.__init__(id, killf, verbose)
+            self.kill = self.kill
+        def __new__(cls, id, killf, verbose):
+            return JobSubproc_.__new__(JobSubproc_, id, killf, verbose)
+        def kill(self):
+            return self.killf(self.id, verbose=self.verbose)
+
+    class OSJobSubproc(JobSubproc):
+        def __init__(self, pid, verbose=True):
+            JobSubproc.__init__(id=pid, killf=kill_process, verbose=verbose)
+        def __new__(cls, pid, verbose=True):
+            return JobSubproc.__new__(cls, id=pid, killf=kill_process, verbose=verbose)
+
+    class DRMJobSubproc(JobSubproc):
+        def __init__(self, job_id, drm_obj, verbose=True):
+            JobSubproc.__init__(id=job_id, killf=drm_obj.kill, verbose=verbose)
+        def __new__(cls, job_id, drm_obj, verbose=True):
+            return JobSubproc.__new__(cls, id=job_id, killf=drm_obj.kill, verbose=verbose)
+
+    _JobSubprocSet = namedtuple('JobSubprocSet', ['os', 'drm'])
+    JobSubprocSet = _JobSubprocSet(os=OSJobSubproc, drm=DRMJobSubproc)
+
+    j1 = OSJobSubproc(-1)
+    print(j1)
+    j2 = DRMJobSubproc(-1, os)
+    print(j2)
+
+    # j1.kill()
+    j2.kill()
 
 
-def _t(s, delay=1, n=3):
-    for _ in range(n):
-        print(s)
-        time.sleep(delay)
-    return s
 
-sem = defer.DeferredSemaphore(len(handlers))
+from functools import wraps
 
-def _tcb(h, locks):
-    print('{} ended'.format(h))
-    handlers[h]['ended'] = True
-    #if all(v['ended'] for v in handlers.values()):
-    #    reactor.stop()
-    locks.release(key=h)
+def decor(dec_arg):
+    def w(f):
+        @wraps(f)
+        def ww(*args, **dargs):
+            dargs['add1'] = 'AAD1'
+            dargs['DECARG'] = dec_arg
+            return f(*args, **dargs)
+        return ww
+    return w
 
-def _stop(r, locks):
-    print('STOP: {}'.format(r))
-    locks.release()
-    reactor.stop()
+@decor('DECARG111')
+def test_decorator(*args, **dargs):
+    print('F({}, {})'.format(args, dargs))
 
-def test_twisted():
-    #[sem.acquire() for _ in handlers]
-    #[deferToThread(_t, h, delay=v['delay']).addCallback(_tcb, sem) for h, v in handlers.items()]
-    #reactor.callLater(1, defer.DeferredList([sem.acquire() for _ in range(len(handlers)+0)]).addCallback, _stop)
+#######################
 
-    locks = DeferredLockSet(keys=handlers.keys(), acquired=True)
-    [deferToThread(_t, h, delay=v['delay']).addCallback(_tcb, locks) for h, v in handlers.items()]
-    reactor.callLater(1, locks.acquire().addCallback, _stop, locks)
 
-    reactor.run()
 
 try:
 
-    test_argparser()
+    print(sys.executable)
+    print(sys.argv)
 
-    #test_twisted()
+    print(os.path.dirname(os.path.realpath(__file__)))
+
+    print(get_fqdn())
+
+    #test_argparser()
+
+    # _finally()
+
+    # test_meta()
+
+    # test_cast()
+
+    test_decorator(1, 2, 3, 'QUQU', sss='SS')
+
+    pass
 
 except KeyboardInterrupt:
     pass
-except Exception as e:
-    print(traceback.format_exc(e))
+except Exception as x:
+    handle_exception(None, x, stack=True)
