@@ -15,7 +15,9 @@ import json
 from twisted.internet import reactor, error, defer
 from twisted.internet.threads import deferToThread
 import time
-from grutils import DeferredLockSet, handle_exception, kill_process, get_fqdn
+from grutils import DeferredLockSet, handle_exception, kill_process, get_fqdn, rrun
+from multiprocessing import Lock
+
 
 #print sys.argv[1:]
 
@@ -217,7 +219,10 @@ try:
 
     # test_cast()
 
-    test_decorator(1, 2, 3, 'QUQU', sss='SS')
+    # test_decorator(1, 2, 3, 'QUQU', sss='SS')
+
+    #print(rrun('cva-xeon114', 'garryya', 'Ptah12587', 'sudo ls', verbose=True))
+    print(rrun('hsv-scd107', 'root', 'cadence', 'ls', verbose=True))
 
     pass
 
