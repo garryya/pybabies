@@ -54,16 +54,23 @@ def test_optparser():
     print(opts, args)
     pass
 
+def fff():
+    print('STACK:\n')
+    tb = traceback.format_stack()[:-1]
+    #print(tb)
+    #print('XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX')
+    print(''.join(tb))
+
 def test_argparser():
     parser = argparse.ArgumentParser()
     g = parser.add_mutually_exclusive_group()
-    parser.add_argument("-a", "--action", dest='action', action='store_true', default='a', metavar=argparse.SUPPRESS)
-    parser.add_argument("-b", dest='bb', action='store_true', default='bb', help="bb")
-    g.add_argument("--l1", dest='l1', action='store_true', default='l1', help="l1")
-    g.add_argument("--l2", dest='l2', action='store_true', default='l2', help="l2")
-    opts, args = parser.parse_args()
-    print(opts, args)
-    pass
+    #parser.add_argument("-a", "--action", dest='action', action='store_true', default='a', metavar=argparse.SUPPRESS)
+    # parser.add_argument("-b", dest='bb', action='store_true', default='bb', help="bb")
+    # g.add_argument("--l1", dest='l1', action='store_true', default='l1', help="l1")
+    # g.add_argument("--l2", dest='l2', action='store_true', default='l2', help="l2")
+    # opts, args = parser.parse_args()
+    # print(opts, args)
+    fff()
 
 
 def dec(o):
@@ -211,7 +218,7 @@ try:
 
     print(get_fqdn())
 
-    #test_argparser()
+    test_argparser()
 
     # _finally()
 
@@ -222,7 +229,7 @@ try:
     # test_decorator(1, 2, 3, 'QUQU', sss='SS')
 
     #print(rrun('cva-xeon114', 'garryya', 'Ptah12587', 'sudo ls', verbose=True))
-    print(rrun('hsv-scd107', 'root', 'cadence', 'ls', verbose=True))
+    #print(rrun('hsv-scd107', 'root', 'cadence', 'ls', verbose=True))
 
     pass
 
