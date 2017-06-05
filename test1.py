@@ -207,6 +207,32 @@ def test_decorator(*args, **dargs):
 
 #######################
 
+# TODO !HACK ALERT! for long options with quoted string with spaces: --opt="a b    c" --> --opt="a,b,c"
+def _hack_optparse_string_args(*argnames):
+    hacked = []
+    for a in argnames:
+        print('XXX \t{}'.format(a))
+        try:
+            a = [o for o in argv if a in o][0]
+            opt = a.split('=')
+            print('XXX \t\t{}'.format(opt))
+            if len(opt) == 2:
+                val = opt[1].strip().strip('"').strip()
+                val = re.sub(r'[,\+]*\s+[,\+]*', r',', val)
+                hacked.append('{}="{}"'.format(opt[0], val))
+                print('XXX \t\t\t{}'.format(hacked))
+                argv.remove(a)
+        except:
+            pass
+    for a in hacked:
+        argv.append(a)
+
+
+print('XXX {}'.format(argv))
+_hack_optparse_string_args('--jobs')
+print('XXX {}'.format(argv))
+###
+
 
 
 try:

@@ -1,19 +1,15 @@
-#!/grid/common/pkgs/python/v3.4.0/bin/python3 -B
+#!/usr/bin/python3 -B
 
-from twisted.internet.protocol import Protocol, Factory
-from twisted.protocols.basic import LineReceiver
-from twisted.internet.threads import deferToThread
-from twisted.internet import reactor, defer
-import threading
-from grutils import setup_logging, handle_exception, EMPTY_RESPONSE_HOLDER, addr2name
-from grutils import _deserialize
 import logging
 from optparse import OptionParser
-import uuid
-from clt import the_file
+from twisted.internet.protocol import Protocol, Factory
+from twisted.protocols.basic import LineReceiver
+from twisted.internet import reactor, defer
+from utils import setup_logging, handle_exception, _deserialize, EOS
+from c import the_file
 
 
-LOG = logging.getLogger('srv')
+LOG = logging.getLogger('twsc')
 
 
 parser = OptionParser()
@@ -29,6 +25,9 @@ class ReceiveStream(LineReceiver):
         self.setRawMode()
         self.chunks = []
 
+    def dataReceived(self, data):
+        LineReceiver.dataReceived(self, data)
+
     def getpeer(self):
         return self.transport.getPeer()
 
@@ -36,15 +35,13 @@ class ReceiveStream(LineReceiver):
         return sum(len(c) for c in self.chunks)
 
     def connectionMade(self):
-        #self.factory.clients.append(self)
         peer = self.getpeer()
         LOG.info('\tconnected from {}:{}'.format(peer.host, peer.port))
         self.chunks = []
 
     def rawDataReceived(self, data):
         peer = self.getpeer()
-        self.chunks.append(data)
-        LOG.info('\t\trecieved from {}:{} ---> {} / {}:{} / {}...'.format(
+        LOG.info('\t\tgot raw from {}:{} ---> {} / {}:{} / {}...'.format(
                                                        peer.host,
                                                        peer.port,
                                                        len(data),
@@ -52,11 +49,22 @@ class ReceiveStream(LineReceiver):
                                                        self.collectedDataLen(),
                                                        str(data)[:32]))
 
+        if len(data) > len(EOS)+2 and data[-len(EOS)-2:-2] == EOS:
+            self.chunks.append(data[:-len(EOS)-2])
+            self.finilize(peer)
+            self.transport.loseConnection()
+        else:
+            self.chunks.append(data)
+
+    def lineReceived(self, line):
+        LOG.info('got line={}'.format(line))
+        self.transport.write('got it!')
+
     def verify(self, file, buffer):
         return open(file, 'rb').read() == buffer
 
-    def connectionLost(self, reason):
-        peer = self.getpeer()
+    def finilize(self, peer):
+        LOG.info('\t\tfinilizing stream from {} ...'.format(peer))
         data = b''.join(self.chunks)
         success = True
         try:
@@ -66,21 +74,23 @@ class ReceiveStream(LineReceiver):
         except Exception as x:
             errmsg = 'failed deserializing stream: {}'.format(x)
             success = False
-        LOG.info('\t{} from {}:{} ---> {} / {} / {}...'.format('SUCCESS' if success else 'CORRUPTED! ({})'.format(errmsg),
-                                                       peer.host,
-                                                       peer.port,
-                                                       self.collectedDataLen(),
-                                                       len(self.chunks),
-                                                       str(data)[:32]))
-        # self.transport.write(EMPTY_RESPONSE_HOLDER.encode())
-        # self.factory.clients.remove(self)
+        LOG.info(
+            '\t\t{} from {}:{} ---> {} / {} / {}...'.format('SUCCESS' if success else 'CORRUPTED! ({})'.format(errmsg),
+                                                            peer.host,
+                                                            peer.port,
+                                                            self.collectedDataLen(),
+                                                            len(self.chunks),
+                                                            str(data)[:32]))
 
+    def connectionLost(self, reason):
+        if self.chunks:
+            self.finilize(self.getpeer())
 
 ######################################
 ######################################
 
 try:
-    LOG = setup_logging('srv', 'srv.log', level=logging.DEBUG, to_stdout=True)
+    LOG = setup_logging('twsc', 's.log', level=logging.DEBUG, to_stdout=True)
 
     ReceiveStream.compress = not options.nocompress
     ReceiveStream.verification_file = the_file

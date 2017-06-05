@@ -2,7 +2,8 @@
 
 import sys
 import threading
-from grutils import setup_logging, sockSend, _serialize, handle_exception, runcmdo, EMPTY_RESPONSE_HOLDER
+from grutils import setup_logging, sockSend, _serialize
+from grutils import handle_exception, runcmdo, EMPTY_RESPONSE_HOLDER, opt_choice_validator
 import traceback
 import logging
 from twisted.internet import reactor, protocol
@@ -10,25 +11,23 @@ from twisted.protocols.basic import LineReceiver
 
 
 #the_file = '/lan/cva/debugger_user4/garryya/rd/zjob/packages/1.0/zjob-1.0.144-rhel-6.5-x86_64.tar.gz'
-the_file = '/lan/cva/debugger_user4/garryya/rd/pt/build/exe.linux-x86_64-2.6/datetime.so'
+the_file = '/lan/cva/debugger_user4/garryya/rd/pt/build/exe.linux-x86_64-2.6/libpython2.6.so.1.0'
 #the_file = 'disasm.py'
 #the_file = 'aaa'
 
 LOG = setup_logging('clt', 'clt.log', level=logging.DEBUG, to_stdout=True)
 
-def tf(n):
+def tf(n, buffer, host, port, compress):
     tid = threading.currentThread().ident
-    data = open(options.file, 'br').read()
-    res = sockSend(options.server,
-                   options.port,
-                   data,
+    res = sockSend(host,
+                   port,
+                   buffer,
                    wait_for_response=False,
                    verbose=True,
                    timeout=None,
                    serialize=True,
-                   compress=False)
+                   compress=compress)
     LOG.debug('[CLT:%x]\t %6s --> %s', tid, n, str(res))
-
 
 
 class SendStream(LineReceiver):
@@ -68,14 +67,9 @@ def tw_stream_send(buffer, host, port, compress=True):
     reactor.callLater(0, reactor.connectTCP, host, port, f)
 
 
-
-
-
 if __name__ == '__main__':
     try:
-
         from optparse import OptionParser
-
         parser = OptionParser()
         parser.add_option('--server', dest='server', default='127.0.0.1')
         parser.add_option('--port', '-p', dest='port', default=7777)
@@ -83,15 +77,31 @@ if __name__ == '__main__':
         parser.add_option('-s', dest='size', default=4096, type=int)
         parser.add_option('--file', '-f', dest='file', default=the_file)
         parser.add_option('--nocompress', dest='nocompress', action='store_true', default=False)
-        options, run_cmd = parser.parse_args()
+        parser.add_option('--twisted', dest='twisted', action='store_true', default=False)
+        parser.add_option('--ttt',
+                          dest='ttt',
+                          type='str',
+                          action='callback',
+                          callback = opt_choice_validator,
+                          callback_kwargs=dict(choices=['fuck', 'dick']),
+                          default='',
+                          help='aaaa')
+        options, args = parser.parse_args()
+        print('options={}\nargs={}'.format(options, args))
 
         buffer = open(options.file, 'br').read()
 
-        for i in range(1, options.n + 1):
-            tw_stream_send(buffer, options.server, options.port, not options.nocompress)
-
-        #reactor.callLater(5, reactor.stop)
-        reactor.run()
+        if options.twisted:
+            for i in range(1, options.n + 1):
+                tw_stream_send(buffer, options.server, options.port, not options.nocompress)
+            reactor.run()
+        else:
+            threads = [threading.Thread(target=tf,
+                                        args=(i, buffer, options.server, options.port, not options.nocompress),
+                                        name=str(i)) for i in range(1, options.n + 1)]
+            assert threads
+            [t.start() for t in threads]
+            [t.join() for t in threads]
 
     except KeyboardInterrupt:
         reactor.stop()
