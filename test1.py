@@ -7,17 +7,15 @@ __version__     = '0.1'
 import sys
 import os
 import re
-from optparse import OptionParser, OptionGroup, SUPPRESS_HELP
+from optparse import OptionParser, OptionGroup
 import argparse
 import traceback
 from collections import OrderedDict, namedtuple
 import json
 from twisted.internet import reactor, error, defer
 from twisted.internet.threads import deferToThread
-import time
-from grutils import DeferredLockSet, handle_exception, kill_process, get_fqdn, rrun
+from grutils import DeferredLockSet, handle_exception, kill_process, get_fqdn, time_to_epoch
 from multiprocessing import Lock
-
 
 #print sys.argv[1:]
 
@@ -39,6 +37,8 @@ def _finally():
     finally:
         print('something is wrong')
 
+def is_valid_time(option, opt_str, value, parser):
+    parser.values.T = time_to_epoch(value)
 
 def test_optparser():
     parser = OptionParser()
@@ -48,6 +48,13 @@ def test_optparser():
     g1.add_option("--l1", dest='l1', action='store_true', default='l1', help="l1")
     g1.add_option("-b", dest='bb', action='store_true', default='bb', help="bb")
     g2.add_option("--l2", dest='l2', action='store_true', default='l2', help="l2")
+    g2.add_option('--start-time',
+                  dest='T',
+                  action='callback',
+                  callback=is_valid_time,
+                  type = str,
+                  default=time_to_epoch(),
+                  help="TIME")
     parser.add_option_group(g1)
     parser.add_option_group(g2)
     opts, args = parser.parse_args()
@@ -228,9 +235,9 @@ def _hack_optparse_string_args(*argnames):
         argv.append(a)
 
 
-print('XXX {}'.format(argv))
-_hack_optparse_string_args('--jobs')
-print('XXX {}'.format(argv))
+#print('XXX {}'.format(argv))
+#_hack_optparse_string_args('--jobs')
+#print('XXX {}'.format(argv))
 ###
 
 
@@ -244,7 +251,8 @@ try:
 
     print(get_fqdn())
 
-    test_argparser()
+    #test_argparser()
+    test_optparser()
 
     # _finally()
 
