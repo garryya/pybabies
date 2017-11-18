@@ -26,7 +26,7 @@ def tf(n, buffer, host, port, compress):
                    verbose=True,
                    timeout=None,
                    serialize=True,
-                   compress=compress)
+                   do_compress=compress)
     LOG.debug('[CLT:%x]\t %6s --> %s', tid, n, str(res))
 
 
@@ -41,7 +41,7 @@ class SendStream(LineReceiver):
 
     def connectionMade(self):
         if self._buffer:
-            data = _serialize(self._buffer, pickle_it=True, compress=SendStream.compress)
+            data = _serialize(self._buffer, do_pickle=True, do_compress=SendStream.compress)
             bs = self.sendLine(data)
             LOG.debug('sent {}/{} --> {}...'.format(bs, len(data), data[:20]))
         self.transport.loseConnection()

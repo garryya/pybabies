@@ -1,4 +1,4 @@
-#!/grid/common/pkgs/python/v3.4.0/bin/python3
+#!/grid/common/pkgs/python/v3.4.0/bin/python3.4 -B
 """
 """
 __author__ = 'garryya'
@@ -7,6 +7,8 @@ __version__     = '0.1'
 import sys
 import os
 import re
+import time
+import logging
 from optparse import OptionParser, OptionGroup
 import argparse
 import traceback
@@ -14,8 +16,13 @@ from collections import OrderedDict, namedtuple
 import json
 from twisted.internet import reactor, error, defer
 from twisted.internet.threads import deferToThread
-from grutils import DeferredLockSet, handle_exception, kill_process, get_fqdn, time_to_epoch
-from multiprocessing import Lock
+from grutils import DeferredLockSet, handle_exception, kill_process, get_fqdn, time2epoch, setup_logging, time2str
+from grutils import get_pid_by_namepath, is_process_running, check_long_option_typo
+from threading import Lock, Thread
+import lxml.html as LH
+from copy import deepcopy
+from flask import Flask, render_template
+import tempfile
 
 #print sys.argv[1:]
 
@@ -28,38 +35,44 @@ def  StairCase(n):
 
 def _finally():
     try:
-        # raise KeyError
+        raise KeyError
         #a = int('aaaaa')
         print(1)
         #os.exit(0)
     except Exception as e:
         print('EXC!!')
     finally:
-        print('something is wrong')
+        print('finally')
 
 def is_valid_time(option, opt_str, value, parser):
-    parser.values.T = time_to_epoch(value)
+    parser.values.T = time2epoch(value)
+
 
 def test_optparser():
     parser = OptionParser()
     g1 = OptionGroup(parser, 'G1')
     g2 = OptionGroup(parser, 'G2')
-    #parser.add_option("-a", "--action", dest='action', action='store_true', default='a', help="aaaaaa what to do")
+    parser.add_option("-a", "--action", dest='action', action='store_true', default=False, help="aaaaaa what to do")
+    parser.add_option("--jopa", dest='jopa', action='store_true', default=False, help="aaaaaa what to do")
     g1.add_option("--l1", dest='l1', action='store_true', default='l1', help="l1")
     g1.add_option("-b", dest='bb', action='store_true', default='bb', help="bb")
     g2.add_option("--l2", dest='l2', action='store_true', default='l2', help="l2")
-    g2.add_option('--start-time',
-                  dest='T',
-                  action='callback',
-                  callback=is_valid_time,
-                  type = str,
-                  default=time_to_epoch(),
-                  help="TIME")
+    # g2.add_option('--start-time',
+    #               dest='T',
+    #               action='callback',
+    #               # callback=is_valid_time,
+    #               type = str,
+    #               default=time2epoch(),
+    #               help="TIME")
+    opt_wrong, opt_implied = check_long_option_typo(parser, sys.argv[1:])
+    if opt_wrong:
+        print('probably wrong option {}: do you mean {}'.format(opt_wrong, opt_implied))
+        sys.exit(1)
     parser.add_option_group(g1)
     parser.add_option_group(g2)
     opts, args = parser.parse_args()
     print(opts, args)
-    pass
+
 
 def fff():
     print('STACK:\n')
@@ -67,6 +80,7 @@ def fff():
     #print(tb)
     #print('XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX')
     print(''.join(tb))
+
 
 def test_argparser():
     parser = argparse.ArgumentParser()
@@ -240,6 +254,198 @@ def _hack_optparse_string_args(*argnames):
 #print('XXX {}'.format(argv))
 ###
 
+def test_pid():
+    name = sys.argv[1]
+    path = sys.argv[2] # '/grid/cva/tools/js/2.0/dev/agents/sw-scd1'
+    pids = get_pid_by_namepath(name, path, verbose=True)
+    print('PIDs = {}'.format(pids))
+
+
+def test_pid_is_running():
+    for pid in sys.argv[1:]:
+        running = is_process_running(pid, nchecks=1)
+        print('PID = {} is {} running'.format(pid, '' if running else 'not'))
+
+def list_dirfiles(e):
+    dirfiles = []
+    # for b in e.iterdescendants(tag='b'):
+    for e in e.iterchildren():
+        if e.tag != 'b':
+            continue
+        text = e.text_content()
+        if text and re.match(r'^[\w\-\.]+$', text):
+            dirfiles.append(text)
+    return dirfiles
+
+
+
+def is_filename(text, pattern=r'^[\w\-]+\.[hHcC]p{0,2}$'):
+    return re.match(pattern, text)
+
+def parse_paths(hul, path, paths):
+    for e in hul.iterchildren():
+        if e.tag != 'ul':
+            continue
+        for df in list_dirfiles(e):
+            text = df.text_content()
+            if is_filename(text):
+                path_str = '/'.join(path)
+                paths[path_str] = []
+                for err in df.iterchildren('ul'):
+                    paths[path_str].append(err)
+            elif text:
+                path_copy = deepcopy(path) + [text]
+                parse_paths(df, path_copy, paths)
+            else:
+                # TODO log....
+                continue
+
+def _location(ul):
+    lis = list(ul.itersiblings(tag='li', preceding=True))
+    if lis:
+        for b in lis[0].iterchildren('b'):
+            loc = re.findall(r'[a-zA-Z_][\w\-\.]+', b.text_content())
+            if loc:
+                return loc[0]
+    return ''
+
+
+
+def walk_html(h, indent=0):
+    papa = '{}:{}'.format(h.tag, _location(h))
+    i = '\t' * indent
+    l = list(h.iterchildren(tag='ul'))
+    print('{}# {} #'.format(i, ','.join('{}-{}'.format(e.tag,_location(e)) for e in l)))
+    for e in l:
+        loc = _location(e)
+        print('{}<{}> {} ||| {}'.format(i, e.tag, loc, papa))
+        walk_html(e, indent=indent+1)
+
+def _collect_kids(e, tag, tags):
+    for t in e.iterchildren():
+        if t.tag == tag:
+            tags.append(t)
+        _collect_kids(t, tag, tags)
+
+
+def walk_errors(h, path, paths, loc=None):
+    if loc and is_filename(loc):
+        k = '/'.join(path)
+        paths[k] = dict(h=h, errors={})
+        errors = []
+        _collect_kids(h, 'tr', errors)
+        for err in errors:
+            err_info = dict(description='?', rule='?')
+            err_fields = list(err.iterchildren(tag='td'))
+            assert len(err_fields) == 4
+            descr = re.match(r'^(\d+)\:\s*(.*)$', err_fields[1].text_content(), re.M|re.DOTALL)
+            if descr and len(descr.groups()) == 2:
+                line = descr.groups()[0]
+                err_info['description'] = descr.groups()[1].strip()
+                err_info['rule'] = err_fields[3].text_content()
+                err_info['.html2replace'] = LH.tostring(err_fields[1])
+                print('{}{} : {}\n'.format('\t'*(len(path)+1), line, err_info))
+                paths[k]['errors'][line] = err_info
+        print('{} {} error(s) : {}'.format('\t' * len(path), len(paths[k]['errors']), k))
+    else:
+        for e in h.iterchildren(tag='ul'):
+            loc = _location(e)
+            new_path = deepcopy(path)
+            if loc:
+                new_path += [loc]
+            print('{}<{}> {}'.format('\t' * len(path), e.tag, loc))
+            walk_errors(e, new_path, paths, loc=loc)
+    return True
+
+
+def parse_report(report_html, modules):
+    anchors = [r'findings by file',
+               r'active rules']
+    anchors_pos = {a:re.search(a, report_html, re.I) for a in anchors}
+    if not all(p for p in anchors_pos.values()):
+        print('Failed: one of the anchors not found ({})'.format(anchors_pos))
+        sys.exit(1)
+
+    report_html = report_html[anchors_pos[anchors[0]].start():anchors_pos[anchors[1]].start()]
+    anchor1_corrected = r'<b>Total\s*[^\s<>]*</b></li>'
+    anchor1_corrected_pos = re.search(anchor1_corrected, report_html, re.I)
+    if not anchor1_corrected_pos:
+        print('Failed: corrected anchors not found ({})'.format(anchor1_corrected))
+        sys.exit(1)
+
+    report_html = report_html[anchor1_corrected_pos.start()+len(anchor1_corrected):]
+
+    h = LH.fromstring(report_html)
+
+    path = []
+    paths = {}
+    walk_errors(h, path, paths)
+
+
+def test_html_parsing():
+    htmlf = '/home/garryya/rd/tmp/report.html.sav'
+    # htmlf = '/home/garryya/rd/tmp/report.html'
+    parse_report(open(htmlf).read(), None)
+
+
+app = Flask(__name__)
+
+@app.route('/')
+def index():
+    return render_template('index.html')
+
+
+def test_log():
+    LOG = setup_logging('test1', logfile='test1.log', level=logging.DEBUG)
+
+
+def test_stdin():
+    while True:
+        print('* waiting for input...')
+        data = sys.stdin.readline()
+        print('\t{} got: {}'.format(time2str(), data))
+
+def test_pipe():
+    tmpdir = '/tmp' # tempfile.mkdtemp()
+    pname = 'test1pipe'
+    ppath = os.path.join(tmpdir, pname)
+    print('PID={} pipe={}'.format(os.getpid(), ppath))
+    try:
+        os.mkfifo(ppath)
+    except OSError as x:
+        print(x)
+        sys.exit(1)
+    with open(ppath, buffering=1) as p:
+        while True:
+            print('* waiting for input...')
+            # data = sys.stdin.read()
+            data = p.read()
+            print('\t{} got: {}'.format(time2str(), data))
+
+def test_pipe_tw():
+    reactor.callLater(0, test_stdin)
+    reactor.run()
+
+
+def test_lock(l, s):
+    print('{} enters'.format(s))
+    if l.acquire(blocking=False):
+        try:
+            print('{} acquired'.format(s))
+            time.sleep(3)
+        finally:
+            print('{} released'.format(s))
+    else:
+        print('{} denied'.format(s))
+
+
+def test_lock_denied():
+    lock = Lock()
+    ss = ['A', 'B']
+    threads = [Thread(target=test_lock, args=(lock, s), name=s) for s in ss]
+    [t.start() for t in threads]
+    [t.join() for t in threads]
+
 
 
 try:
@@ -252,7 +458,8 @@ try:
     print(get_fqdn())
 
     #test_argparser()
-    test_optparser()
+
+    # test_optparser()
 
     # _finally()
 
@@ -264,6 +471,24 @@ try:
 
     #print(rrun('cva-xeon114', 'garryya', 'Ptah12587', 'sudo ls', verbose=True))
     #print(rrun('hsv-scd107', 'root', 'cadence', 'ls', verbose=True))
+
+
+    # test_pid()
+    # test_pid_is_running()
+
+
+    # test_html_parsing()
+
+
+    # test_log()
+
+
+    #test_pipe()
+
+
+    # test_pipe_tw()
+
+    test_lock_denied()
 
     pass
 

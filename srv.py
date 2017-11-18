@@ -60,7 +60,7 @@ class ReceiveStream(LineReceiver):
         data = b''.join(self.chunks)
         success = True
         try:
-            data = _deserialize(data, pickle_it=True, compress=ReceiveStream.compress)
+            data = _deserialize(data, do_pickle=True, do_compress=ReceiveStream.compress)
             if ReceiveStream.verification_file:
                 assert self.verify(ReceiveStream.verification_file, data), 'Verification failed for {}'.format(the_file)
         except Exception as x:
